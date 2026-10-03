@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planejador de Runas · Diablo 4</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Lora:wght@400;600&display=swap">
+<style>
+:root{--bg:#120e0c;--panel:#1c1613;--line:#3a2c25;--bone:#e3d8bf;--dim:#9c8f7c;--ember:#e8903a;--ok:#8fbf6a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:radial-gradient(900px 400px at 50% -100px,#3a1710,transparent),var(--bg);color:var(--bone);font:16px/1.55 Lora,Georgia,serif;padding:20px 16px 48px}
+main{max-width:620px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+h1,h2{font-family:Cinzel,Georgia,serif;margin:0}
+h1{font-size:clamp(1.7rem,5vw,2.4rem);color:var(--ember)}
+h2{font-size:1.15rem;margin-bottom:12px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px}
+section+section{margin-top:20px}
+.form{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+label{display:grid;gap:3px;color:var(--dim);font-size:.85rem}
+select,input{font:inherit;color:var(--bone);background:#261d18;border:1px solid var(--line);border-radius:4px;padding:5px 8px}
+input[type=number]{width:4.8rem;text-align:center}
+select:focus-visible,input:focus-visible,summary:focus-visible,.rwb:focus-visible{outline:2px solid var(--ember);outline-offset:1px}
+.res{border-top:1px solid var(--line);padding-top:12px}
+.step{padding:6px 0;border-bottom:1px dashed var(--line)}
+.step b{color:var(--ember)}
+.tot{margin:10px 0 0;color:var(--dim);font-size:.92rem}
+.note{color:var(--dim);font-size:.85rem;margin:0 0 12px}
+.bad{color:#e57373}.good{color:var(--ok)}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;color:var(--dim)}
+.own{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:10px}
+.own label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.88rem}
+.own input{width:4.2rem;padding:3px 5px}
+.rwlist{display:grid;gap:6px;margin-bottom:14px;max-height:340px;overflow-y:auto}
+.rwb{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;font:inherit;color:var(--bone);background:#261d18;border:1px solid var(--line);border-radius:4px;padding:8px 10px;cursor:pointer}
+.rwb span{grid-column:1;color:var(--dim);font-size:.85rem}
+.rwb i{grid-column:2;grid-row:1/3;align-self:center;color:var(--dim);font-size:.82rem;font-style:normal}
+.rwb.on{border-color:var(--ember)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1 data-t="h1"></h1>
+  <label><span data-t="lang"></span><select id="lang"><option value="pt">Português (BR)</option><option value="en">English</option><option value="es">Español</option></select></label>
+</header>
+<section>
+  <h2 data-t="hr"></h2>
+  <div class="form">
+    <label><span data-t="tgt"></span><select id="target"></select></label>
+    <label><span data-t="qty"></span><input type="number" id="qty" min="1" value="1"></label>
+  </div>
+  <div id="plan" class="res"></div>
+  <details>
+    <summary data-t="own"></summary>
+    <div class="own" id="own"></div>
+  </details>
+</section>
+<section>
+  <h2 data-t="hw"></h2>
+  <p class="note" data-t="note"></p>
+  <div class="form"><label><span data-t="bs"></span><select id="base"></select></label></div>
+  <div class="rwlist" id="rwlist"></div>
+  <div id="rwplan" class="res"></div>
+  <details><summary data-t="srcs"></summary><p class="note" data-t="srct" style="margin-top:10px"></p></details>
+</section>
+</main>
+<script>
+const I={
+pt:{h1:'Planejador de Runas',lang:'Idioma',hr:'Planejador de runas',tgt:'Runa desejada',qty:'Quantidade',tx:'transmutar',
+tot:'Material total (do zero)',miss:'Ainda falta',ok:'Com o que você tem, já dá para fazer tudo.',have:'Você já tem {n}× {t}.',
+own:'Já tenho algum material (opcional)',hw:'Planejador de armas',bs:'Tipo de base',all:'Todas',lvl:'nv',rn:'Runas',ab:'Bases aceitas',
+tc:'Runas que ainda precisam ser craftadas:',ar:'Você já tem todas as runas. É só colocar a base e as runas no cubo.',okw:'Com o que você tem, dá para craftar todas as runas.',
+note:'Receitas de palavra rúnica do cubo. A base precisa ser um item branco (comum): dá para tirar os afixos de um item lendário, raro ou mágico no cubo para deixá-lo comum. A base é consumida junto com as runas e há uma receita por tipo de base. A receita aparece como ??? até a última runa entrar. O material marcado em "Já tenho" também vale aqui.',
+srcs:'Fontes dos nomes',srct:'Notas de patch da Blizzard em pt-BR (Gume, Legado), textos do jogo em pt-BR de bases de dados de itens (gemas, Peitoral, Elmo, Arma de Haste, Espada de duas mãos) e DiabloNext, em espanhol (palavras rúnicas, gemas e bases). Nomes sem fonte confirmada aparecem em inglês, e os demais tipos de base seguem o padrão usado no jogo, mas ainda não foram conferidos um a um. Os nomes das runas não são traduzidos.'},
+en:{h1:'Rune Planner',lang:'Language',hr:'Rune planner',tgt:'Target rune',qty:'Quantity',tx:'transmute',
+tot:'Total materials (from scratch)',miss:'Still missing',ok:'With what you have, you can make everything.',have:'You already have {n}× {t}.',
+own:'Materials I already have (optional)',hw:'Weapon planner',bs:'Base type',all:'All',lvl:'lvl',rn:'Runes',ab:'Accepted bases',
+tc:'Runes still to craft:',ar:'You already have all the runes. Just put the base and the runes in the cube.',okw:'With what you have, you can craft all the runes.',
+note:'Horadric Cube runeword recipes. The base must be a white (common) item: you can strip the affixes of a legendary, rare or magic item in the cube to make it common. The base is consumed with the runes, and there is one recipe per base type. The recipe shows as ??? until the last rune goes in. Materials listed under "I already have" count here too.',
+srcs:'Name sources',srct:'English names come from the game and the source list at d4.auscraft.games. Rune names are never translated.'},
+es:{h1:'Planificador de Runas',lang:'Idioma',hr:'Planificador de runas',tgt:'Runa deseada',qty:'Cantidad',tx:'transmutar',
+tot:'Material total (desde cero)',miss:'Aún falta',ok:'Con lo que tienes, ya puedes hacerlo todo.',have:'Ya tienes {n}× {t}.',
+own:'Material que ya tengo (opcional)',hw:'Planificador de armas',bs:'Tipo de base',all:'Todas',lvl:'niv',rn:'Runas',ab:'Bases aceptadas',
+tc:'Runas que aún hay que fabricar:',ar:'Ya tienes todas las runas. Solo pon la base y las runas en el cubo.',okw:'Con lo que tienes, puedes fabricar todas las runas.',
+note:'Recetas de palabras rúnicas del cubo. La base debe ser un objeto blanco (común): puedes quitar los afijos de un objeto legendario, raro o mágico en el cubo para dejarlo común. La base se consume junto con las runas y hay una receta por tipo de base. La receta aparece como ??? hasta que entra la última runa. El material que marques en "Ya tengo" también cuenta aquí.',
+srcs:'Fuentes de los nombres',srct:'Nombres tomados de la lista de palabras rúnicas de DiabloNext, que usa los textos del juego en español (palabras rúnicas, gemas y bases). Los nombres de las runas no se traducen.'}
+};
+const GEMN={
+pt:{'Chipped Topaz':'Topázio Lascado','Chipped Amethyst':'Ametista Lascada','Flawless Amethyst':'Ametista Impecável','Flawless Ruby':'Rubi Impecável','Flawless Emerald':'Esmeralda Impecável','Flawless Diamond':'Diamante Impecável'},
+es:{'Chipped Topaz':'Topacio fragmentado','Chipped Amethyst':'Amatista fragmentada','Flawless Amethyst':'Amatista sin defectos','Flawless Ruby':'Rubí sin defectos','Flawless Emerald':'Esmeralda sin defectos','Flawless Diamond':'Diamante sin defectos','Grand Topaz':'Topacio grandioso','Grand Sapphire':'Zafiro grandioso'}};
+const RWN={
+pt:{'Edge':'Gume','Lore':'Legado'},
+es:{"Ancient's Pledge":'Juramento de los Ancestros','Call to Arms':'Llamada a las armas','Edge':'Filo','Enigma':'Enigma','Grief':'Dolor','Holy Thunder':'Trueno sagrado','Infinity':'Infinidad','Insight':'Conocimiento',"King's Grace":'Gracia del rey','Leaf':'Hoja','Lore':'Historia','Pattern':'Patrón','Phoenix':'Fénix','Prudence':'Prudencia','Rain':'Lluvia','Spirit':'Espíritu','Stealth':'Sigilo','Strength':'Fuerza','Zephyr':'Céfiro'}};
+const BASEN={
+pt:{'Focus':'Foco','Shield':'Escudo','Totem':'Totem','Axe':'Machado','Dagger':'Adaga','Flail':'Mangual','Mace':'Maça','Scythe':'Foice','Sword':'Espada','Wand':'Varinha','Bow':'Arco','Crossbow':'Besta','Glaive':'Glaive','Polearm':'Arma de Haste','Staff':'Cajado','Two-Handed Axe':'Machado de duas mãos','Two-Handed Mace':'Maça de duas mãos','Two-Handed Scythe':'Foice de duas mãos','Two-Handed Sword':'Espada de duas mãos','Chest Armor':'Peitoral','Helm':'Elmo'},
+es:{'Focus':'Foco','Shield':'Escudo','Totem':'Tótem','Axe':'Hacha','Dagger':'Daga','Flail':'Mangual','Mace':'Maza','Scythe':'Guadaña','Sword':'Espada','Wand':'Vara','Bow':'Arco','Crossbow':'Ballesta','Glaive':'Guja','Polearm':'Arma de asta','Quarterstaff':'Bastón recortado','Staff':'Bastón','Two-Handed Axe':'Hacha de dos manos','Two-Handed Mace':'Maza de dos manos','Two-Handed Scythe':'Guadaña de dos manos','Two-Handed Sword':'Espada de dos manos','Chest Armor':'Peto','Helm':'Yelmo'}};
+
+let lang='en';
+try{lang=localStorage.getItem('d4lang')||''}catch(e){}
+if(!I[lang]){const n=(navigator.language||'').slice(0,2);lang=I[n]?n:'en'}
+const t=k=>I[lang][k];
+const pick=(M,k)=>((M[lang]||{})[k])||k;
+const nm=k=>pick(GEMN,k),rwn=k=>pick(RWN,k),bsn=k=>pick(BASEN,k);
+
+const CH=[
+['Tir'],['Eth','Tir',3],['Ith','Eth',3],['Tal','Ith',3],['Ral','Tal',3],['Ort','Ral',3],['Thul','Ort',3],
+['Amn','Thul',3,'Chipped Topaz'],['Sol','Amn',3,'Chipped Amethyst'],
+['Mal'],['Ist','Mal',2,'Flawless Amethyst'],['Vex','Ist',2,'Flawless Ruby'],['Ohm','Vex',2,'Flawless Emerald'],
+['Lo','Ohm',2,'Flawless Diamond'],['Ber','Lo',2,'Grand Topaz'],['Jah','Ber',2,'Grand Sapphire']
+].map(([n,from,q,gem])=>({n,from,q,gem}));
+const REC={};CH.forEach(r=>REC[r.n]=r);
+const GEMS=['Chipped Topaz','Chipped Amethyst','Flawless Amethyst','Flawless Ruby','Flawless Emerald','Flawless Diamond','Grand Topaz','Grand Sapphire'];
+let inv={};
+try{inv=JSON.parse(localStorage.getItem('d4plan')||'{}')}catch(e){}
+const $=id=>document.getElementById(id);
+const fmt=o=>Object.entries(o).map(([k,v])=>`${v}× ${nm(k)}`).join(', ');
+const stepHtml=(steps,r)=>`<div class="step"><b>${steps[r.n]}×</b> ${t('tx')} ${r.q}× ${r.from}${r.gem?' + '+nm(r.gem):''} → ${r.n}</div>`;
+
+function calcMany(list,have){
+  const c={...have},steps={},gn={},miss={};
+  function need(r,q){
+    const use=Math.min(c[r]||0,q);c[r]=(c[r]||0)-use;const rem=q-use;if(!rem)return;
+    const rec=REC[r];
+    if(!rec.from){miss[r]=(miss[r]||0)+rem;return}
+    steps[r]=(steps[r]||0)+rem;
+    if(rec.gem)gn[rec.gem]=(gn[rec.gem]||0)+rem;
+    need(rec.from,rem*rec.q);
+  }
+  list.forEach(([r,n])=>need(r,n));
+  return {steps,gn,miss};
+}
+function summary(list,okMsg){
+  const {steps,gn,miss}=calcMany(list,inv);
+  const full=calcMany(list,{});
+  const gmiss={};Object.keys(gn).forEach(k=>{if(gn[k]>(inv[k]||0))gmiss[k]=gn[k]-(inv[k]||0)});
+  const bad=Object.keys(miss).length||Object.keys(gmiss).length;
+  const rows=CH.filter(r=>steps[r.n]).map(r=>stepHtml(steps,r));
+  return {rows,html:`<p class="tot">${t('tot')}: ${fmt(full.miss)}${Object.keys(full.gn).length?', '+fmt(full.gn):''}</p>`+
+    (Object.keys(inv).some(k=>inv[k]>0)?(bad?`<p class="tot bad">${t('miss')}: ${fmt({...miss,...gmiss})}</p>`:`<p class="tot good">${okMsg}</p>`):'')};
+}
+
+function render(){
+  const tg=$('target').value,n=Math.max(1,parseInt($('qty').value)||1);
+  const s=summary([[tg,n]],t('ok'));
+  $('plan').innerHTML=s.rows.length?s.rows.join('')+s.html:`<p class="good">${t('have').replace('{n}',n).replace('{t}',tg)}</p>`;
+}
+
+const A1=['Axe','Dagger','Flail','Focus','Mace','Scythe','Sword','Totem','Wand'],A2=[...A1,'Shield'],
+B2=['Bow','Crossbow','Glaive','Polearm','Quarterstaff','Staff','Two-Handed Axe','Two-Handed Mace','Two-Handed Scythe','Two-Handed Sword'];
+const RW=[
+["Ancient's Pledge",'Ral Ort Tal',21,['Focus','Shield','Totem']],
+['Call to Arms','Amn Ral Mal Ist Ohm',57,A1],
+['Edge','Tir Tal Amn',25,B2],
+['Enigma','Jah Ith Ber',65,['Chest Armor']],
+['Grief','Eth Tir Lo Mal Ral',59,['Axe','Sword']],
+['Holy Thunder','Eth Ral Ort Tal',21,['Flail','Mace']],
+['Infinity','Ber Mal Ber Ist',63,B2],
+['Insight','Ral Tir Tal Sol',27,['Bow','Crossbow','Glaive','Polearm','Quarterstaff','Staff','Two-Handed Scythe']],
+["King's Grace",'Amn Ral Thul',25,['Flail','Mace','Sword']],
+['Leaf','Tir Ral',19,['Staff']],
+['Lore','Ort Sol',27,['Helm']],
+['Pattern','Tal Ort Thul',21,['Dagger']],
+['Phoenix','Vex Vex Lo Jah',65,A2],
+['Prudence','Mal Tir',49,['Chest Armor']],
+['Rain','Ort Mal Ith',49,['Chest Armor']],
+['Spirit','Tal Thul Ort Amn',25,A2],
+['Stealth','Tal Eth',17,['Chest Armor']],
+['Strength','Amn Tir',25,A1],
+['Zephyr','Ort Eth',21,['Bow','Crossbow']]
+].map(([n,r,lv,b])=>({n,r:r.split(' '),lv,b}));
+let sel=null;
+const BASES=[...new Set(RW.flatMap(w=>w.b))];
+
+function buildBase(){
+  const cur=$('base').value;
+  const loc=lang==='pt'?'pt-BR':lang;
+  $('base').innerHTML=`<option value="">${t('all')}</option>`+[...BASES].sort((a,b)=>bsn(a).localeCompare(bsn(b),loc)).map(b=>`<option value="${b}">${bsn(b)}</option>`).join('');
+  $('base').value=cur;
+}
+function buildOwn(){
+  $('own').innerHTML=[...CH.map(r=>r.n),...GEMS].map(k=>`<label>${nm(k)}<input type="number" min="0" data-k="${k}" value="${inv[k]||0}"></label>`).join('');
+}
+function renderRW(){
+  const f=$('base').value;
+  const list=RW.filter(w=>!f||w.b.includes(f));
+  if(!list.some(w=>w.n===sel))sel=list.length?list[0].n:null;
+  $('rwlist').innerHTML=list.map(w=>`<button type="button" class="rwb${w.n===sel?' on':''}" aria-pressed="${w.n===sel}" data-i="${RW.indexOf(w)}"><b>${rwn(w.n)}</b><span>${w.r.join(' + ')}</span><i>${t('lvl')} ${w.lv}</i></button>`).join('');
+  const w=RW.find(x=>x.n===sel);
+  if(!w){$('rwplan').innerHTML='';return}
+  const cnt={};w.r.forEach(r=>cnt[r]=(cnt[r]||0)+1);
+  const s=summary(Object.entries(cnt),t('okw'));
+  let h=`<p><b>${rwn(w.n)}</b> (${t('lvl')} ${w.lv})<br>${t('rn')}: ${fmt(cnt)}<br><span class="tot">${t('ab')}: ${w.b.map(bsn).join(', ')}</span></p>`;
+  h+=s.rows.length?`<p class="tot">${t('tc')}</p>`+s.rows.join('')+s.html:`<p class="good">${t('ar')}</p>`;
+  $('rwplan').innerHTML=h;
+}
+
+function setLang(l){
+  lang=l;$('lang').value=l;
+  try{localStorage.setItem('d4lang',l)}catch(e){}
+  document.documentElement.lang=l==='pt'?'pt-BR':l;
+  document.title=t('h1')+' · Diablo 4';
+  document.querySelectorAll('[data-t]').forEach(e=>e.textContent=t(e.dataset.t));
+  buildOwn();buildBase();render();renderRW();
+}
+
+$('target').innerHTML=CH.filter(r=>r.from).map(r=>`<option${r.n==='Sol'?' selected':''}>${r.n}</option>`).join('');
+$('own').addEventListener('input',e=>{
+  const i=e.target;inv[i.dataset.k]=Math.max(0,parseInt(i.value)||0);
+  try{localStorage.setItem('d4plan',JSON.stringify(inv))}catch(x){}
+  render();renderRW();
+});
+$('target').onchange=$('qty').oninput=render;
+$('base').onchange=renderRW;
+$('lang').onchange=e=>setLang(e.target.value);
+$('rwlist').addEventListener('click',e=>{const b=e.target.closest('button');if(b){sel=RW[+b.dataset.i].n;renderRW()}});
+setLang(lang);
+</script>
+</body>
+</html>
